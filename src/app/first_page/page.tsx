@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
-const API_KEY = "0a39f2bf4459ff31860c73c7f003a44b";
+// const API_KEY = "0a39f2bf4459ff31860c73c7f003a44b";
+const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const BASE_URL = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
