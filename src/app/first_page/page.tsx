@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 
+// const API_KEY = "0a39f2bf4459ff31860c73c7f003a44b";
+const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
+const BASE_URL = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
 interface Movie {
@@ -45,12 +48,6 @@ const FILTERS = [
   "Anime",
 ];
 
-// All API calls go through /api/movies proxy → Vercel → TMDB
-const api = (endpoint: string) =>
-  fetch(`/api/movies?endpoint=${encodeURIComponent(endpoint)}`).then((r) =>
-    r.json()
-  );
-
 function StarRating({ score }: { score: number }) {
   const pct = Math.round((score / 10) * 100);
 
@@ -77,7 +74,13 @@ function StarRating({ score }: { score: number }) {
         />
       </div>
 
-      <span style={{ fontSize: 12, color: "#f5d07a", fontWeight: 600 }}>
+      <span
+        style={{
+          fontSize: 12,
+          color: "#f5d07a",
+          fontWeight: 600,
+        }}
+      >
         {score.toFixed(1)}
       </span>
     </div>
@@ -191,7 +194,12 @@ function MovieCard({
 
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <StarRating score={movie.vote_average} />
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.45)",
+              }}
+            >
               {year}
             </span>
           </div>
@@ -292,7 +300,12 @@ function MovieCard({
             justifyContent: "space-between",
           }}
         >
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+          <span
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.4)",
+            }}
+          >
             {year}
           </span>
 
@@ -315,7 +328,13 @@ function MovieCard({
 
 function SkeletonCard() {
   return (
-    <div style={{ borderRadius: 14, overflow: "hidden", background: "#111827" }}>
+    <div
+      style={{
+        borderRadius: 14,
+        overflow: "hidden",
+        background: "#111827",
+      }}
+    >
       <div
         style={{
           paddingTop: "150%",
@@ -325,6 +344,7 @@ function SkeletonCard() {
           animation: "shimmer 1.5s infinite",
         }}
       />
+
       <div style={{ padding: "12px 14px 14px" }}>
         <div
           style={{
@@ -334,8 +354,14 @@ function SkeletonCard() {
             marginBottom: 6,
           }}
         />
+
         <div
-          style={{ height: 12, borderRadius: 4, background: "#1f2937", width: "60%" }}
+          style={{
+            height: 12,
+            borderRadius: 4,
+            background: "#1f2937",
+            width: "60%",
+          }}
         />
       </div>
     </div>
@@ -350,32 +376,38 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+
   const [showTrailer, setShowTrailer] = useState(false);
   const [trailerKey, setTrailerKey] = useState("");
 
-  // Fetch trending
   useEffect(() => {
-    api("/trending/movie/week?")
+    fetch(`${BASE_URL}/trending/movie/week?api_key=${API_KEY}`)
+      .then((r) => r.json())
       .then((d) => setTrending(d.results?.slice(0, 5) ?? []))
       .catch(() => setTrending([]));
   }, []);
 
-  // Fetch movies based on filter/search/page
   useEffect(() => {
     setLoading(true);
 
-    const genreId =
-      Object.keys(GENRE_MAP).find((k) => GENRE_MAP[+k] === activeFilter) ?? "";
-
     const endpoint = query
-      ? `/search/movie?query=${encodeURIComponent(query)}&page=${page}`
-      : activeFilter === "Anime"
-      ? `/discover/movie?with_genres=16&sort_by=popularity.desc&page=${page}`
-      : activeFilter !== "All"
-      ? `/discover/movie?sort_by=popularity.desc&page=${page}&with_genres=${genreId}`
-      : `/discover/movie?sort_by=popularity.desc&page=${page}`;
+  ? `${BASE_URL}/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(
+      query
+    )}&page=${page}`
+  : activeFilter === "Anime"
+  ? `${BASE_URL}/discover/movie?api_key=${API_KEY}&with_genres=16&sort_by=popularity.desc&page=${page}`
+  : `${BASE_URL}/discover/movie?api_key=${API_KEY}&sort_by=popularity.desc&page=${page}${
+      activeFilter !== "All"
+        ? `&with_genres=${
+            Object.keys(GENRE_MAP).find(
+              (k) => GENRE_MAP[+k] === activeFilter
+            ) ?? ""
+          }`
+        : ""
+    }`;
 
-    api(endpoint)
+    fetch(endpoint)
+      .then((r) => r.json())
       .then((d) => {
         setMovies(d.results ?? []);
         setLoading(false);
@@ -392,10 +424,17 @@ export default function Home() {
 
   const openTrailer = async (movieId: number) => {
     try {
-      const data = await api(`/movie/${movieId}/videos?`);
-      const trailer = data.results?.find(
-        (video: any) => video.site === "YouTube" && video.type === "Trailer"
+      const res = await fetch(
+        `${BASE_URL}/movie/${movieId}/videos?api_key=${API_KEY}`
       );
+
+      const data = await res.json();
+
+      const trailer = data.results.find(
+        (video: any) =>
+          video.site === "YouTube" && video.type === "Trailer"
+      );
+
       if (trailer) {
         setTrailerKey(trailer.key);
         setShowTrailer(true);
@@ -420,12 +459,42 @@ export default function Home() {
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
-        @keyframes shimmer { to { background-position: -200% 0; } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
-        * { box-sizing: border-box; margin: 0; padding: 0 }
-        ::-webkit-scrollbar { width: 6px }
-        ::-webkit-scrollbar-track { background: #111 }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px }
+
+        @keyframes shimmer {
+          to {
+            background-position: -200% 0;
+          }
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity:0;
+            transform:translateY(20px)
+          }
+          to {
+            opacity:1;
+            transform:translateY(0)
+          }
+        }
+
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0
+        }
+
+        ::-webkit-scrollbar {
+          width: 6px
+        }
+
+        ::-webkit-scrollbar-track {
+          background: #111
+        }
+
+        ::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 3px
+        }
       `}</style>
 
       {/* Trailer Modal */}
@@ -473,6 +542,7 @@ export default function Home() {
             >
               ✕
             </button>
+
             <iframe
               width="100%"
               height="500"
@@ -507,39 +577,52 @@ export default function Home() {
             gap: 32,
           }}
         >
-          <span
-            style={{
-              fontSize: 22,
-              fontWeight: 900,
-              background: "linear-gradient(135deg,#e9b54a,#f5d07a)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              fontFamily: "'Playfair Display',serif",
-              letterSpacing: -0.5,
-            }}
-          >
-            MovieHub
-          </span>
-
-          <div style={{ display: "flex", gap: 24, flex: 1 }}>
-            <button
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
               style={{
-                background: "none",
-                border: "none",
-                color: "#f5d07a",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: "4px 0",
+                fontSize: 22,
+                fontWeight: 900,
+                background: "linear-gradient(135deg,#e9b54a,#f5d07a)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontFamily: "'Playfair Display',serif",
+                letterSpacing: -0.5,
               }}
             >
-              Home
-            </button>
+              MovieHub
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: 24, flex: 1 }}>
+            {["Home"].map((item) => (
+              <button
+                key={item}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color:
+                    item === "Home"
+                      ? "#f5d07a"
+                      : "rgba(255,255,255,0.5)",
+                  fontSize: 14,
+                  fontWeight: item === "Home" ? 600 : 400,
+                  cursor: "pointer",
+                  padding: "4px 0",
+                  transition: "color 0.2s",
+                }}
+              >
+                {item}
+              </button>
+            ))}
           </div>
 
           <form
             onSubmit={handleSearch}
-            style={{ display: "flex", alignItems: "center", gap: 8 }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
           >
             <div style={{ position: "relative" }}>
               <input
@@ -557,6 +640,7 @@ export default function Home() {
                   outline: "none",
                 }}
               />
+
               <span
                 style={{
                   position: "absolute",
@@ -570,6 +654,7 @@ export default function Home() {
                 🔍
               </span>
             </div>
+
             <button
               type="submit"
               style={{
@@ -589,24 +674,47 @@ export default function Home() {
         </div>
       </nav>
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "2rem 2rem 4rem" }}>
+      <main
+        style={{
+          maxWidth: 1280,
+          margin: "0 auto",
+          padding: "2rem 2rem 4rem",
+        }}
+      >
         {!query && featuredMovie && (
-          <section style={{ marginBottom: "3rem", animation: "fadeUp 0.6s ease both" }}>
-            <h2
+          <section
+            style={{
+              marginBottom: "3rem",
+              animation: "fadeUp 0.6s ease both",
+            }}
+          >
+            <div
               style={{
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: 2,
-                color: "rgba(255,255,255,0.35)",
-                textTransform: "uppercase",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 marginBottom: 16,
               }}
             >
-              Featured this week
-            </h2>
+              <h2
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: 2,
+                  color: "rgba(255,255,255,0.35)",
+                  textTransform: "uppercase",
+                }}
+              >
+                Featured this week
+              </h2>
+            </div>
 
             <div
-              style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16 }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 300px",
+                gap: 16,
+              }}
             >
               <MovieCard
                 movie={featuredMovie}
@@ -614,7 +722,13 @@ export default function Home() {
                 onClick={() => openTrailer(featuredMovie.id)}
               />
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
                 {trending.slice(1, 4).map((m, i) => (
                   <div
                     key={m.id}
@@ -639,8 +753,13 @@ export default function Home() {
                     >
                       #{i + 2}
                     </span>
+
                     <img
-                      src={m.poster_path ? `${IMG_BASE}/w92${m.poster_path}` : ""}
+                      src={
+                        m.poster_path
+                          ? `${IMG_BASE}/w92${m.poster_path}`
+                          : ""
+                      }
                       alt={m.title}
                       style={{
                         width: 36,
@@ -651,6 +770,7 @@ export default function Home() {
                         flexShrink: 0,
                       }}
                     />
+
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p
                         style={{
@@ -665,6 +785,7 @@ export default function Home() {
                       >
                         {m.title}
                       </p>
+
                       <StarRating score={m.vote_average} />
                     </div>
                   </div>
@@ -675,11 +796,21 @@ export default function Home() {
         )}
 
         {!query && (
-          <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginBottom: 24,
+              flexWrap: "wrap",
+            }}
+          >
             {FILTERS.map((f) => (
               <button
                 key={f}
-                onClick={() => { setActiveFilter(f); setPage(1); }}
+                onClick={() => {
+                  setActiveFilter(f);
+                  setPage(1);
+                }}
                 style={{
                   background:
                     activeFilter === f
@@ -688,7 +819,10 @@ export default function Home() {
                   border: "none",
                   borderRadius: 30,
                   padding: "7px 18px",
-                  color: activeFilter === f ? "#1a1100" : "rgba(255,255,255,0.6)",
+                  color:
+                    activeFilter === f
+                      ? "#1a1100"
+                      : "rgba(255,255,255,0.6)",
                   fontSize: 13,
                   fontWeight: activeFilter === f ? 700 : 400,
                   cursor: "pointer",
@@ -709,10 +843,16 @@ export default function Home() {
           }}
         >
           {loading
-            ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
+            ? Array.from({ length: 12 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))
             : movies.length > 0
             ? movies.map((m) => (
-                <MovieCard key={m.id} movie={m} onClick={() => openTrailer(m.id)} />
+                <MovieCard
+                  key={m.id}
+                  movie={m}
+                  onClick={() => openTrailer(m.id)}
+                />
               ))
             : (
               <div
